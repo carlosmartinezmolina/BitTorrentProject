@@ -32,29 +32,60 @@ class Node:
         #self.successor = self.finger[0].id
         self.predeccessor = None
 
-    def interval(self,id,node_id,node_successor):
-        return id >= node_id and id <= node_successor
+    def open_open_interval(self,id,node_id,node_successor):
+        return id > node_id and id < node_successor
+    def open_close_interval(self,id,node_id,node_successor):
+        return id > node_id and id <= node_successor
+    def close_open_interval(self,id,node_id,node_successor):
+        return id > node_id and id < node_successor
 
-    def closest_preceding_node(id):
+    def find_predecessor(self,id):
+        x = self
+        while not open_close_interval(id,x,x.successor):
+            x = x.closest_preceding_node(id)
+        return x
+
+    def find_successor(self,id):
+        x = self.find_predecessor(id)
+        return x.successor
+
+    def closest_preceding_node(self,id):
         for i in range(self.m,-1):
             finger_node = self.finger[i]
-            if interval(finger_node.id,self.id,id):
+            if open_open_interval(finger_node.id,self.id,id):
                 return finger_node
         return self
-
-    def find_successor(id):
-        if interval(id,self.id,self.successor):
-            return self.successor
-        n = closest_preceding_node(id)
-        return n.find_successor(id)
     
+    def init_finger_table(self,node):
+        self.successor = node.find_successor(self.id + 1)
+        self.predeccessor = self.successor.predeccessor
+        self.successor.predeccessor = self
+
+    def update_finger_table(self,s,i):
+        if close_open_interval(s.id,self.id,self.finger[i].id):
+            self.finger[i] = s
+            p = self.predeccessor
+            p.update_finger_table(s,i)
+
+    def update_others(self):
+        for i in range(0,self.m):
+            p = self.find_predecessor(self.id - pow(2,i - 1))
+            p.update_finger_table(self,i)
+
+    def join(self,node):
+        if node is not None:
+            init_finger_table(node)
+            update_others()
+        else:
+            for i in range(0,self.m):
+                self.finger[i] = n
+            self.predeccessor = n
+        
+
     def create(self):
         self.predeccessor = None
         self.successor = self
 
-    def join(self,node):
-        self.predeccessor = None
-        self.successor = node.find_successor(self.id)
 
     @periodically(10)
     def stabilize(self):
