@@ -58,8 +58,14 @@ class Node:
     
     def init_finger_table(self,node):
         self.successor = node.find_successor(self.id + 1)
+        self.finger[1] = self.successor
         self.predeccessor = self.successor.predeccessor
         self.successor.predeccessor = self
+        for i in range(0,self.m - 1):
+            if close_open_interval(self.finger[i+1],self):
+                self.finger[i + 1] = self.finger[i]
+            else:
+                self.finger[i + 1] = node.find_successor(self.finger[i+1].id)
 
     def update_finger_table(self,s,i):
         if close_open_interval(s.id,self.id,self.finger[i].id):
@@ -82,28 +88,26 @@ class Node:
             self.predeccessor = n
         
 
-    def create(self):
-        self.predeccessor = None
-        self.successor = self
+    # def create(self):
+    #     self.predeccessor = None
+    #     self.successor = self
 
 
     @periodically(10)
     def stabilize(self):
         x = self.successor.predeccessor
-        if interval(x,self.id,self.successor):
+        if open_open_interval(x,self.id,self.successor):
             self.successor = x
         self.successor.notify(self)
 
     def notify(self,node):
-        if self.predeccessor is None or interval(node.id,self.predeccessor.id,self.id):
+        if self.predeccessor is None or open_open_interval(node.id,self.predeccessor.id,self.id):
             self.predeccessor = node
 
     @periodically(10)
     def fix_finger(self):
-        next = next + 1
-        if next > self.m:
-            next = 1
-        self.finger[next] = self.find_successor(n + pow(2,next - 1))
+        next = random.randint(1,self.m)
+        self.finger[next] = self.find_successor(self.id + pow(2,next - 1))
 
     @periodically(10)
     def check_predeccessor(self):
