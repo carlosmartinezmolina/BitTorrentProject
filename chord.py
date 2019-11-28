@@ -1,4 +1,6 @@
-import hashlib, sys, random, time
+import hashlib, sys, random, time, math
+
+k = 16
 
 class Identifier:
     def __init__(self,number,ip,port):
@@ -12,9 +14,6 @@ def between(n1,n2,n3):
         return n1 < n2 or n2 < n3
 
 
-#x = Identifier(5,'192.168.0.1',3128)
-#print(x.identifier.digest())
-
 def periodically(number):
     def decorator(function):
         def wrapper(*args,**kwargs):
@@ -22,66 +21,117 @@ def periodically(number):
                 time.sleep(number)
                 function(*args,**kwargs)
         return wrapper
-    return decorator    
+    return decorator  
 
 class Node:
     def __init__(self,id):
         self.id = id
-        self.m = 5
+        self.m = int(math.log2(k))
         self.finger_table = [None] * self.m
+        self.start = [None] * self.m
+        for i in range(self.m):
+            self.start[i] = (self.id + (2**i)) % (2**k)
         self.predeccessor = None
-        self.successor = None
+
+    def decr(value,size):
+        if size <= value:
+            return value - size
+        return (2**k) - (size - value)
+
+    def successor(self):
+        return self.finger_table[0]
+
+    def between(self,id,node_id,node_successor):
+        if node_id == node_successor:
+            return True
+        elif node_id > node_successor:
+            shift = k - node_id
+            node_id = 0
+            node_successor = (node_successor + shift) % k
+            id = (id + shift) % k
+        return node_id < id < node_successor
+    def Ebetween(self,id,node_id,node_successor):
+        if id == node_id:
+            return True
+        return between(id,node_id,node_successor)
+    def betweenE(self,id,node_id,node_successor):
+        if id == node_successor:
+            return True
+        return between(id,node_id,node_successor) 
 
     def open_open_interval(self,id,node_id,node_successor):
         if node_id == node_successor:
             return True
-        return id > node_id and id < node_successor
+        elif node_id < node_successor:
+            return id > node_id and id < node_successor
+        else:
+            return id < node_id and id > node_successor
     def open_close_interval(self,id,node_id,node_successor):
         if node_id == node_successor:
             return True
-        return id > node_id and id <= node_successor
+        elif node_id < node_successor:
+            return id > node_id and id <= node_successor
+        else:
+            return id < node_id and id >= node_successor
     def close_open_interval(self,id,node_id,node_successor):
         if node_id == node_successor:
             return True
-        return id > node_id and id < node_successor
+        elif node_id < node_successor:
+            return id >= node_id and id < node_successor
+        else:
+            return id <= node_id and id > node_successor
 
     def find_predecessor(self,id):
+        if id == self.id:
+            return self.predeccessor
         x = self
-        while not self.open_close_interval(id,x.id,x.successor.id):
+        print('fff' + ' ' + str(self.open_close_interval(id,x.id,x.successor().id)))
+        while not self.betweenE(id,x.id,x.successor().id):
             x = x.closest_preceding_node(id)
         return x
 
     def find_successor(self,id):
+        if self.betweenE(id,self.predeccessor.id,self.id):
+            return self
         x = self.find_predecessor(id)
-        return x.successor
+        return x.successor()
 
     def closest_preceding_node(self,id):
-        for i in range(self.m,-1):
+        print('closest')
+        print(str(self.id) + ' ' + str(id))
+        for i in range(self.m - 1,-1,-1):
             finger_node = self.finger_table[i]
-            if self.open_open_interval(finger_node.id,self.id,id):
+            print(str(finger_node) + ' ' + str(finger_node.id))
+            if self.between(finger_node.id,self.id,id):
                 return finger_node
         return self
     
     def init_finger_table(self,node):
-        self.successor = node.find_successor(self.id)
-        self.finger_table[0] = self.successor
-        self.predeccessor = self.successor.predeccessor
-        self.successor.predeccessor = self
-        for i in range(0,self.m - 1):
-            if self.close_open_interval(self.finger_table[i+1].id,self.id,self.finger_table[i].id):
+        self.finger_table[0] = node.find_successor(self.start[0])
+        self.predeccessor = self.successor().predeccessor
+        self.successor().predeccessor = self
+        self.predeccessor.finger_table[0] = self
+        for i in range(self.m - 1):
+            print('xxxxx')
+            print(self.finger_table)
+            print(str(self.start[i+1]) + ' ' + str(self.id) + ' ' + str(self.finger_table[i].id))
+            if self.Ebetween(self.start[i+1],self.id,self.finger_table[i].id):
                 self.finger_table[i + 1] = self.finger_table[i]
             else:
-                self.finger_table[i + 1] = node.find_successor(self.finger_table[i+1].id)
+                self.finger_table[i + 1] = node.find_successor(self.start[i+1])
 
     def update_finger_table(self,s,i):
-        if self.close_open_interval(s.id,self.id,self.finger_table[i].id):
+        if self.id != s.id and self.Ebetween(s.id,self.id,self.finger_table[i].id):
             self.finger_table[i] = s
             p = self.predeccessor
             p.update_finger_table(s,i)
 
     def update_others(self):
-        for i in range(0,self.m):
-            p = self.find_predecessor(self.id - pow(2,i - 1))
+        for i in range(self.m):
+            prev = self.decr(self.id,2**i)
+            p = self.find_predecessor(prev)
+            if prev == p.successor().id:
+                p = p.successor()
             p.update_finger_table(self,i)
 
     def join(self,node):
@@ -93,10 +143,9 @@ class Node:
             print(self.finger_table)
             print(node.finger_table)
         else:
-            for i in range(0,self.m):
+            for i in range(self.m):
                 self.finger_table[i] = self
             self.predeccessor = self
-            self.successor = self
         
 
     @periodically(10)
