@@ -33,7 +33,7 @@ class Node:
             self.start[i] = (self.id + (2**i)) % (2**k)
         self.predeccessor = None
 
-    def decr(value,size):
+    def decr(self,value, size):
         if size <= value:
             return value - size
         return (2**k) - (size - value)
@@ -53,39 +53,16 @@ class Node:
     def Ebetween(self,id,node_id,node_successor):
         if id == node_id:
             return True
-        return between(id,node_id,node_successor)
+        return self.between(id,node_id,node_successor)
     def betweenE(self,id,node_id,node_successor):
         if id == node_successor:
             return True
-        return between(id,node_id,node_successor) 
-
-    def open_open_interval(self,id,node_id,node_successor):
-        if node_id == node_successor:
-            return True
-        elif node_id < node_successor:
-            return id > node_id and id < node_successor
-        else:
-            return id < node_id and id > node_successor
-    def open_close_interval(self,id,node_id,node_successor):
-        if node_id == node_successor:
-            return True
-        elif node_id < node_successor:
-            return id > node_id and id <= node_successor
-        else:
-            return id < node_id and id >= node_successor
-    def close_open_interval(self,id,node_id,node_successor):
-        if node_id == node_successor:
-            return True
-        elif node_id < node_successor:
-            return id >= node_id and id < node_successor
-        else:
-            return id <= node_id and id > node_successor
+        return self.between(id,node_id,node_successor) 
 
     def find_predecessor(self,id):
         if id == self.id:
             return self.predeccessor
         x = self
-        print('fff' + ' ' + str(self.open_close_interval(id,x.id,x.successor().id)))
         while not self.betweenE(id,x.id,x.successor().id):
             x = x.closest_preceding_node(id)
         return x
@@ -97,11 +74,8 @@ class Node:
         return x.successor()
 
     def closest_preceding_node(self,id):
-        print('closest')
-        print(str(self.id) + ' ' + str(id))
         for i in range(self.m - 1,-1,-1):
             finger_node = self.finger_table[i]
-            print(str(finger_node) + ' ' + str(finger_node.id))
             if self.between(finger_node.id,self.id,id):
                 return finger_node
         return self
@@ -112,9 +86,6 @@ class Node:
         self.successor().predeccessor = self
         self.predeccessor.finger_table[0] = self
         for i in range(self.m - 1):
-            print('xxxxx')
-            print(self.finger_table)
-            print(str(self.start[i+1]) + ' ' + str(self.id) + ' ' + str(self.finger_table[i].id))
             if self.Ebetween(self.start[i+1],self.id,self.finger_table[i].id):
                 self.finger_table[i + 1] = self.finger_table[i]
             else:
@@ -136,12 +107,14 @@ class Node:
 
     def join(self,node):
         if node != self:
-            print('yes')
             self.init_finger_table(node)
-            print('no')
             self.update_others()
-            print(self.finger_table)
-            print(node.finger_table)
+            print(str(self.id) + ': ')
+            for i in self.finger_table:
+                print(i.id)
+            print(str(node.id) + ': ')
+            for i in node.finger_table:
+                print(i.id)
         else:
             for i in range(self.m):
                 self.finger_table[i] = self
