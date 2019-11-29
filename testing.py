@@ -11,6 +11,7 @@ def request(s):
     print('type download to ask for a file')
     print('type upload to share a file')
     entry = input()
+    # entry = 'new'
     if entry == 'new':
         s.send(b'new')
         answer = s.recv(4)
@@ -39,7 +40,7 @@ def begin_client():
     print('type port: ')
     port = int(input())
     s.connect((ip,port))
-
+    # s.connect(('localhost',8080))
     handshake(s)
     
     request(s)

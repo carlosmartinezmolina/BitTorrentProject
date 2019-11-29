@@ -7,10 +7,10 @@ def create_node(ip,port):
     h = ip + ':' + str(port)
     h = hashlib.sha256(h.encode())
     n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
-    print(n)
     new_node = chord.Node(n)
+    # print(n)
     new_node.join(server_node)
-    print('end')
+    # print('end')
 
 def handshake(sc):
     pack = sc.recv(1024)
@@ -49,14 +49,15 @@ def begin_server():
     print('type port: ')
     port = int(input())
     s.bind((ip,port))
+    # s.bind(('localhost',8080))
     s.listen(10)
 
     
 
     while True:
-        print('no')
+        # print('no')
         sc , adr = s.accept()
-        print('yes')
+        # print('yes')
         th = threading.Thread(target = auxiliar(sc,adr))
         th.start()
         

@@ -58,10 +58,10 @@ class Node:
         if node_id == node_successor:
             return True
         elif node_id > node_successor:
-            shift = k - node_id
+            shift = 2**k - node_id
             node_id = 0
-            node_successor = (node_successor + shift) % k
-            id = (id + shift) % k
+            node_successor = (node_successor + shift) % 2**k
+            id = (id + shift) % 2**k
         return node_id < id < node_successor
     def Ebetween(self,id,node_id,node_successor):
         if id == node_id:
@@ -76,14 +76,18 @@ class Node:
         if id == self.id:
             return self.predeccessor
         x = self
+        # print(str(id) + '   ' + str(x.id) + '   ' + str(x.successor().id))
+        # print(self.betweenE(id,x.id,x.successor().id))
         while not self.betweenE(id,x.id,x.successor().id):
             x = x.closest_preceding_node(id)
         return x
 
     def find_successor(self,id):
+        # print('successor ' + str(id))
         if self.betweenE(id,self.predeccessor.id,self.id):
             return self
         x = self.find_predecessor(id)
+        # print('termino find successor')
         return x.successor()
 
     def closest_preceding_node(self,id):
@@ -94,15 +98,21 @@ class Node:
         return self
     
     def init_finger_table(self,node):
+        # print('finger table ' + str(node.id))
         self.finger_table[0] = node.find_successor(self.start[0])
+        # print('middle ' + str(self.successor().id))
         self.predeccessor = self.successor().predeccessor
         self.successor().predeccessor = self
         self.predeccessor.finger_table[0] = self
+        # print('avanced ' + str(self.predeccessor.id))
         for i in range(self.m - 1):
             if self.Ebetween(self.start[i+1],self.id,self.finger_table[i].id):
                 self.finger_table[i + 1] = self.finger_table[i]
+                # print('entro al if')
             else:
+                # print('no entro al if')
                 self.finger_table[i + 1] = node.find_successor(self.start[i+1])
+        
 
     def update_finger_table(self,s,i):
         if self.id != s.id and self.Ebetween(s.id,self.id,self.finger_table[i].id):
@@ -120,20 +130,22 @@ class Node:
 
     def join(self,node):
         if node.id != self.id:
+            # print('entro')
             self.init_finger_table(node)
+            # print('finger')
             self.update_others()
-            print('----+++++')
-            print(str(self.id) + ': ')
-            print('Predecesor: ' + str(self.predeccessor.id))
-            print('Sucesor: ' + str(self.successor().id))
-            print('-----')
-            print(str(self.predeccessor.id) + ': ')
-            print('Predecesor: ' + str(self.predeccessor.predeccessor.id))
-            print('Sucesor: ' + str(self.predeccessor.successor().id))
-            print('+++++')
-            print(str(self.successor().id) + ': ')
-            print('Predecesor: ' + str(self.successor().predeccessor.id))
-            print('Sucesor: ' + str(self.successor().successor().id))
+            # print('----+++++')
+            # print(str(self.id) + ': ')
+            # print('Predecesor: ' + str(self.predeccessor.id))
+            # print('Sucesor: ' + str(self.successor().id))
+            # print('-----')
+            # print(str(self.predeccessor.id) + ': ')
+            # print('Predecesor: ' + str(self.predeccessor.predeccessor.id))
+            # print('Sucesor: ' + str(self.predeccessor.successor().id))
+            # print('+++++')
+            # print(str(self.successor().id) + ': ')
+            # print('Predecesor: ' + str(self.successor().predeccessor.id))
+            # print('Sucesor: ' + str(self.successor().successor().id))
         
 
     @periodically(10)
