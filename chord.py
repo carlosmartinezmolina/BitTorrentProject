@@ -1,37 +1,50 @@
-import hashlib, sys, random, time, math
+import hashlib, sys, random, time, math, threading
 
-k = 16
-
-class Identifier:
-    def __init__(self,number,ip,port):
-        self.identifier = str(number) + ip + str(port)
-        self.identifier = hashlib.sha256(self.identifier.encode())
-
-def between(n1,n2,n3):
-    if n1 < n3:
-        return n1 < n2 and n2 < n3
-    else:
-        return n1 < n2 or n2 < n3
+k = 160
 
 
 def periodically(number):
     def decorator(function):
         def wrapper(*args,**kwargs):
-            while True:
-                time.sleep(number)
-                function(*args,**kwargs)
+            def _wrapper():
+                while True:
+                    time.sleep(number)
+                    function(*args,**kwargs)
+            th = threading.Thread(target = _wrapper)
+            th.start()
         return wrapper
     return decorator  
 
 class Node:
     def __init__(self,id):
         self.id = id
+        self.storage = {}
         self.m = int(math.log2(k))
         self.finger_table = [None] * self.m
         self.start = [None] * self.m
         for i in range(self.m):
             self.start[i] = (self.id + (2**i)) % (2**k)
-        self.predeccessor = None
+        for i in range(self.m):
+            self.finger_table[i] = self
+        self.predeccessor = self
+        self.stabilize()
+        self.fix_finger()
+
+
+    def get_key(self,key):
+        node = self.closest_preceding_node(key).successor()
+        if key in self.storage:
+            return self.storage[key]
+        return None
+        
+    #list('[1,2,3,132]'[1:-1].split(','))
+    def put_key(self,key,value):
+        if key not in self.storage:
+            self.storage[key] = [value]
+        else:
+            self.storage[key].append(value)
+
+
 
     def decr(self,value, size):
         if size <= value:
@@ -106,41 +119,39 @@ class Node:
             p.update_finger_table(self,i)
 
     def join(self,node):
-        if node != self:
+        if node.id != self.id:
             self.init_finger_table(node)
             self.update_others()
+            print('----+++++')
             print(str(self.id) + ': ')
-            for i in self.finger_table:
-                print(i.id)
-            print(str(node.id) + ': ')
-            for i in node.finger_table:
-                print(i.id)
-        else:
-            for i in range(self.m):
-                self.finger_table[i] = self
-            self.predeccessor = self
+            print('Predecesor: ' + str(self.predeccessor.id))
+            print('Sucesor: ' + str(self.successor().id))
+            print('-----')
+            print(str(self.predeccessor.id) + ': ')
+            print('Predecesor: ' + str(self.predeccessor.predeccessor.id))
+            print('Sucesor: ' + str(self.predeccessor.successor().id))
+            print('+++++')
+            print(str(self.successor().id) + ': ')
+            print('Predecesor: ' + str(self.successor().predeccessor.id))
+            print('Sucesor: ' + str(self.successor().successor().id))
         
 
     @periodically(10)
     def stabilize(self):
-        x = self.successor.predeccessor
-        if self.open_open_interval(x.id,self.id,self.successor.id):
-            self.successor = x
-        self.successor.notify(self)
+        x = self.successor().predeccessor
+        if self.between(x.id,self.id,self.successor().id):
+            self.finger_table[0] = x
+        self.successor().notify(self)
 
     def notify(self,node):
-        if self.predeccessor is None or self.open_open_interval(node.id,self.predeccessor.id,self.id):
+        if self.predeccessor is None or self.between(node.id,self.predeccessor.id,self.id):
             self.predeccessor = node
 
     @periodically(10)
     def fix_finger(self):
-        next = random.randint(1,self.m)
-        self.finger_table[next] = self.find_successor(self.id + pow(2,next - 1))
+        next = random.randint(0,self.m - 1)
+        self.finger_table[next] = self.find_successor(self.start[next])
 
-    @periodically(10)
-    def check_predeccessor(self):
-        if self.predeccessor is not None:
-            self.predeccessor = None
 
     
 
