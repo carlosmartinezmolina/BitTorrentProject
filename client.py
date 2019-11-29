@@ -1,4 +1,5 @@
 
-def build_torrent(file_name, length, folder_name, files):
+d = {}
+d[1] = [('1',1),('2',2),('3',3)]
 
-
+print(d[1].__contains__(('1',2)))

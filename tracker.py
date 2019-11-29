@@ -57,7 +57,7 @@ def begin_server():
     while True:
         # print('no')
         sc , adr = s.accept()
-        # print('yes')
+        print(adr[0] + ' ' + str(adr[1]))
         th = threading.Thread(target = auxiliar(sc,adr))
         th.start()
         

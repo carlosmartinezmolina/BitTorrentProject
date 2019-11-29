@@ -36,13 +36,33 @@ class Node:
         if key in self.storage:
             return self.storage[key]
         return None
-        
+    
+    def replicar(self,node,key,value):
+        if key not in node.storage:
+            node.storage[key] = [value]
+        else:
+            if not node.storage[key].__contains__(value):
+                node.storage[key].append(value)
+
+    def replica(self,key,value):
+        replicados = []
+        replicados.append(self.id)
+        if not replicados.__contains__(self.successor().id):
+            self.replicar(self.successor(),key,value)
+        if self.m > 1 and not replicados.__contains__(self.finger_table[1].id):
+            self.replicar(self.finger_table[1],key,value)
+
     #list('[1,2,3,132]'[1:-1].split(','))
     def put_key(self,key,value):
         if key not in self.storage:
             self.storage[key] = [value]
         else:
-            self.storage[key].append(value)
+            if not self.storage[key].__contains__(value):
+                self.storage[key].append(value)
+        
+        self.replica(key,value)
+        
+        
 
 
 

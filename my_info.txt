@@ -1,0 +1,1 @@
+falta manejar la salida de los nodos(con la replicacion)
