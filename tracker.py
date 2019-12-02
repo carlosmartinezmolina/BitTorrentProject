@@ -4,41 +4,65 @@ server_node = chord.Node(1)
 server_node.join(server_node)
 
 def create_node(ip,port):
-    h = ip + ':' + str(port)
+    h = ip
     h = hashlib.sha256(h.encode())
     n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
-    new_node = chord.Node(n)
-    # print(n)
-    new_node.join(server_node)
-    # print('end')
+    if not server_node.is_there(n) == n:
+        new_node = chord.Node(n)
+        new_node.join(server_node)
 
 def handshake(sc):
     pack = sc.recv(1024)
+    print(pack.decode())
     if pack.decode() == 'hello':
         sc.send(b'done')
 
 def request(sc,adr):
-    pack = sc.recv(1024)
-    if pack.decode() == 'new':
+    create_node(adr[0],adr[1])
+    try:
+        pack = sc.recv(1024)
+        if len(pack) == 0:
+                return False
+    except:
+        return False
+    if pack.decode() == 'exit':
         sc.send(b'done')
-        create_node(adr[0],adr[1])
+        return False
+    if pack.decode() == 'list':
+        sc.send(b'done')
+        torrent_list = []
+        torrent_list = server_node.get_info(1,torrent_list)
+        sc.send(str(torrent_list).encode())
     if pack.decode() == 'download':
         sc.send(b'done')
-        pack = sc.recv(1024)
+        try:
+            pack = sc.recv(1024)
+            if len(pack) == 0:
+                return False
+        except:
+            return False
         h = hashlib.sha256(pack)
         n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
         ip_list = server_node.get_key(n)
         sc.send(str(ip_list).encode())
     if pack.decode() == 'upload':
         sc.send(b'done')
-        pack = sc.recv(1024)
+        try:
+            pack = sc.recv(1024)
+            if len(pack) == 0:
+                return False
+        except:
+            return False
         h = hashlib.sha256(pack)
         n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
-        ip_list = server_node.put_key(n,adr)
+        ip_list = server_node.put_key(n,adr,pack.decode())
+    return True
 
 def auxiliar(sc,adr):
     handshake(sc)
-    request(sc,adr)
+    boolean = True
+    while boolean:
+        boolean = request(sc,adr)
     sc.close()
 
 
@@ -55,10 +79,11 @@ def begin_server():
     
 
     while True:
-        # print('no')
+        print('waiting for peers')
         sc , adr = s.accept()
+
         print(adr[0] + ' ' + str(adr[1]))
-        th = threading.Thread(target = auxiliar(sc,adr))
+        th = threading.Thread(target = auxiliar,args =(sc,adr,))
         th.start()
         
         

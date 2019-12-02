@@ -19,6 +19,7 @@ class Node:
     def __init__(self,id):
         self.id = id
         self.storage = {}
+        self.info = []
         self.m = int(math.log2(k))
         self.finger_table = [None] * self.m
         self.start = [None] * self.m
@@ -30,37 +31,57 @@ class Node:
         self.stabilize()
         self.fix_finger()
 
+    def is_there(self,id):
+        return self.closest_preceding_node(id).successor().id
 
     def get_key(self,key):
         node = self.closest_preceding_node(key).successor()
         if key in self.storage:
             return self.storage[key]
         return None
+
+    def get_info(self,id,my_list):
+        if self.successor().id == id:
+            for i in self.successor().info:
+                if not my_list.__contains__(i):
+                    my_list.append(i)
+            return my_list
+        else:
+            for i in self.info:
+                if not my_list.__contains__(i):
+                    my_list.append(i)
+            return my_list
+
+
     
-    def replicar(self,node,key,value):
+    def replicar(self,node,key,value,pack):
+        if not node.info.__contains__(pack):
+            node.info.append(pack)
         if key not in node.storage:
             node.storage[key] = [value]
         else:
             if not node.storage[key].__contains__(value):
                 node.storage[key].append(value)
 
-    def replica(self,key,value):
+    def replica(self,key,value,pack):
         replicados = []
         replicados.append(self.id)
         if not replicados.__contains__(self.successor().id):
-            self.replicar(self.successor(),key,value)
+            self.replicar(self.successor(),key,value,pack)
         if self.m > 1 and not replicados.__contains__(self.finger_table[1].id):
-            self.replicar(self.finger_table[1],key,value)
+            self.replicar(self.finger_table[1],key,value,pack)
 
     #list('[1,2,3,132]'[1:-1].split(','))
-    def put_key(self,key,value):
+    def put_key(self,key,value,pack):
+        if not self.info.__contains__(pack):
+            self.info.append(pack)
         if key not in self.storage:
             self.storage[key] = [value]
         else:
             if not self.storage[key].__contains__(value):
                 self.storage[key].append(value)
         
-        self.replica(key,value)
+        self.replica(key,value,pack)
         
         
 
