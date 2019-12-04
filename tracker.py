@@ -1,7 +1,8 @@
 import chord, socket, struct, hashlib, sys, threading, time, dill
 
 server_node = None
-
+tracker_list = []
+is_conected = []
 
 def create_node(ip,port):
     global server_node
@@ -73,7 +74,9 @@ def auxiliar(sc,adr):
 
 def call_broadcast_client(ip,port):
     global server_node
+    global tracker_list
     ip_tracker = broadcast_client(ip,port)
+    tracker_list.append(ip_tracker)
     print('encontre con el broadcast al ' + str(ip_tracker))
     s = socket.socket(type=socket.SOCK_STREAM)
     try:
@@ -85,7 +88,7 @@ def call_broadcast_client(ip,port):
         answer = s.recv(4)
         s.send(b'exit')
         answer = s.recv(4)
-        create_node(ip,port)
+        print('yes')
         s.close()
     except:
         s.close()
@@ -124,11 +127,10 @@ def begin_server():
         th.start()
         
         
-
-    
     s.close()
 
 def broadcast_server(ip,port):
+    global is_conected
     server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -136,13 +138,13 @@ def broadcast_server(ip,port):
     server.setsockopt(socket.SOL_SOCKET,socket.SO_BROADCAST, 1)
 
     server.bind(('',37020))
-    is_conecting = []
+    
     while True:
         data, addr = server.recvfrom(1024)
         if int(data.decode()) > 0 and int(data.decode()) != port:# and ip != addr[0]:
-            print(data.decode())
-            if not is_conecting.__contains__(int(data.decode())):
-                is_conecting.append(int(data.decode()))
+            if not is_conected.__contains__(int(data.decode())):
+                print(data.decode())
+                is_conected.append(int(data.decode()))
                 th = threading.Thread(target = broadcast_server_auxiliar,args =(addr[0],data.decode(),ip,port,))
                 th.start()
 
@@ -166,6 +168,7 @@ def broadcast_client(ip,port):
 
 def broadcast_server_auxiliar(ip,port,my_ip,my_port):
     global server_node
+    global is_conected
     s = socket.socket(type=socket.SOCK_STREAM)
     try:
         s.connect((ip,int(port) + 1000))
@@ -174,8 +177,12 @@ def broadcast_server_auxiliar(ip,port,my_ip,my_port):
         print('conection from ' + str(int(port) + 1000))
         if answer.decode() == 'tracker':
             print('un tracker se esta uniendo')
-            instance = dill.dumps(server_node)
-            s.send(instance)
+            # instance = dill.dumps(server_node)
+            # s.send(instance)
+        else:
+            for i in range(len(is_conected)):
+                if is_conected[i] == int(port):
+                    is_conected[i] = -1
         pack = str((my_ip,my_port))
         s.send(pack.encode())
         answer = s.recv(4)
@@ -190,8 +197,8 @@ def broadcast_client_auxiliar(ip,port,lista):
     s.listen(1)
     sc , adr = s.accept()
     sc.send(b'tracker')
-    instance = sc.recv(1024)
-    server_node = dill.loads(instance)
+    # instance = sc.recv(1024)
+    # server_node = dill.loads(instance)
     pack = sc.recv(1024)
     sc.send(b'done')
     pack = pack.decode()

@@ -67,13 +67,11 @@ class A:
 
         c = self.copysize
         archivo = []
-        ipList = []
+        ipList = None
 
-        print('broadcast_input')
-        temp = input()
-        ipTracker, portTracker = broadcast_client('10.6.227.15',int(temp))
+        ip_temp = int(input())
+        ipTracker, portTracker = broadcast_client(self.ip, int(ip_temp))
         print('-------------------------------------------------------')
-
         try:
             r, w = await asyncio.open_connection(ipTracker, portTracker,
             loop = loop)
@@ -81,34 +79,28 @@ class A:
             a = await self.handshake(w, r)
 
             while True:
-                ipListtemp = await self.request(w, r)
-                            
-                if ipListtemp is None or len(ipListtemp) > 0:
+                ipList = await self.request(w, r)                            
+                if ipList is None or len(ipList) > 0:
                     break
-            
             w.close()
-
         except:
             print('se perdio la conexion con el tracker')
 
-        m = self.downloadFileName        
+        m = self.downloadFileName
+        
+        if ipList is not None and ipList[0] != 'exit':
 
-        if ipList is not None or ipList[0] != 'exit':
-
-            ipList = await self.parsingList(ipListtemp)
+            #ipList = await self.parsingList(ipList)
             
             for ip, port in ipList:
                 try:
                     reader, writer = await asyncio.open_connection(ip, port,
-                    loop = loop)
-                    
+                    loop = loop)                    
 
                     writer.write(m.encode())
-                    await writer.drain()
-                    
+                    await writer.drain()                    
 
                     data = await reader.read(4)
-                    print('+++++++++++++++++++++++++++++++++++++++++++++++')
 
                     message = struct.unpack('I',data)
 
@@ -120,9 +112,7 @@ class A:
                     #lo q ya se copio
                     current = str(self.downloadsize)
                     writer.write(current.encode())
-                    number_packs -= self.downloadsize
-
-                    
+                    number_packs -= self.downloadsize                    
 
                     print("reading files")
                     print('cantidad a descargar%r'%number_packs)
@@ -229,7 +219,7 @@ class A:
         answer = await r.read(4)
         return None
 
-    async def request(self, w,r):
+    async def request(self, w, r):
         print('type list to get the list of torrents')
         print('type download to ask for a file')
         print('type upload to share a file')
@@ -255,9 +245,10 @@ class A:
             self.downloadFileName = filename
             w.write(filename.encode())
             ip_list = await r.read(1024)
+            a=ip_list.decode()
             print(ip_list.decode())
-            
-            return ip_list.decode()
+            b = self.parsingList(a)
+            return b
         if entry == 'upload':
             w.write(b'upload')
             answer = await r.read(4)
@@ -266,10 +257,9 @@ class A:
             w.write(filename.encode())
         return []
 
-
 ip = '10.6.227.15'
-print('type peer port')
-port = input()
+print('type input')
+port = int(input())
 
 a = A(ip, port)
 loop = asyncio.get_event_loop()
