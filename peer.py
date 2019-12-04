@@ -28,7 +28,7 @@ def broadcast_client_auxiliar(ip,port,lista):
     s.bind((ip,port))
     s.listen(1)
     sc , adr = s.accept()
-    sc.send(b'done')
+    sc.send(b'cliente')
     pack = sc.recv(1024)
     sc.send(b'done')
     pack = pack.decode()
@@ -71,7 +71,7 @@ class A:
 
         print('broadcast_input')
         temp = input()
-        ipTracker, portTracker = broadcast_client('10.6.227.15',int(temp))
+        ipTracker, portTracker = broadcast_client('192.168.49.145',int(temp))
         print('-------------------------------------------------------')
 
         try:
@@ -81,9 +81,9 @@ class A:
             a = await self.handshake(w, r)
 
             while True:
-                ipList = await self.request(w, r)
+                ipListtemp = await self.request(w, r)
                             
-                if ipList is None or len(ipList) > 0:
+                if ipListtemp is None or len(ipListtemp) > 0:
                     break
             
             w.close()
@@ -95,7 +95,7 @@ class A:
 
         if ipList is not None or ipList[0] != 'exit':
 
-            ipList = await self.parsingList(ipList)
+            ipList = await self.parsingList(ipListtemp)
             
             for ip, port in ipList:
                 try:
@@ -256,6 +256,7 @@ class A:
             w.write(filename.encode())
             ip_list = await r.read(1024)
             print(ip_list.decode())
+            
             return ip_list.decode()
         if entry == 'upload':
             w.write(b'upload')

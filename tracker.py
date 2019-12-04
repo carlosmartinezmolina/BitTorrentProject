@@ -2,6 +2,7 @@ import chord, socket, struct, hashlib, sys, threading, time
 
 server_node = chord.Node(1)
 server_node.join(server_node)
+tracker_list = []
 
 def create_node(ip,port):
     h = str(port)
@@ -73,6 +74,7 @@ def auxiliar(sc,adr):
 def call_broadcast_client(ip,port):
     ip_tracker = broadcast_client(ip,port)
     print('encontre con el broadcast al ' + str(ip_tracker))
+    
 
 
 def begin_server():
@@ -82,7 +84,6 @@ def begin_server():
     print('type port: ')
     port = int(input())
     s.bind((ip,port))
-    # s.bind(('localhost',8080))
     s.listen(10)
 
     thr = threading.Thread(target = broadcast_server,args = ('192.168.49.145',port,))
@@ -116,6 +117,7 @@ def broadcast_server(ip,port):
     while True:
         data, addr = server.recvfrom(1024)
         if int(data.decode()) > 0 and int(data.decode()) != port:# and ip != addr[0]:
+            print(data.decode())
             if not is_conecting.__contains__(int(data.decode())):
                 print('me conecte')
                 is_conecting.append(int(data.decode()))
@@ -144,9 +146,11 @@ def broadcast_server_auxiliar(ip,port,my_ip,my_port):
     s = socket.socket(type=socket.SOCK_STREAM)
     try:
         s.connect((ip,int(port) + 1000))
-        answer = s.recv(4)
+        answer = s.recv(7)
         print('conection from ' + str(int(port) + 1000))
-
+        if answer.decode() == 'tracker':
+            print('entro un tracker')
+            tracker_list.append((ip,int(port) + 1000))
         pack = str((my_ip,my_port))
         s.send(pack.encode())
         answer = s.recv(4)
@@ -159,7 +163,7 @@ def broadcast_client_auxiliar(ip,port,lista):
     s.bind((ip,port))
     s.listen(1)
     sc , adr = s.accept()
-    sc.send(b'done')
+    sc.send(b'tracker')
     pack = sc.recv(1024)
     sc.send(b'done')
     pack = pack.decode()
