@@ -1,13 +1,13 @@
-import chord, socket, struct, hashlib, sys, threading, time
+import chord, socket, struct, hashlib, sys, threading, time, dill
 
-server_node = chord.Node(2)
+server_node = chord.Node(1)
 server_node.join(server_node)
+
 
 def create_node(ip,port):
     h = str(port)
     h = hashlib.sha256(h.encode())
     n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
-    print(n)
     print(server_node.is_there(n))
     if not server_node.is_there(n) == n:
         new_node = chord.Node(n)
@@ -33,7 +33,7 @@ def request(sc,adr):
     if pack.decode() == 'list':
         sc.send(b'done')
         torrent_list = []
-        torrent_list = server_node.get_info(2,torrent_list)
+        torrent_list = server_node.get_info(1,torrent_list)
         sc.send(str(torrent_list).encode())
     if pack.decode() == 'download':
         sc.send(b'done')
@@ -73,22 +73,22 @@ def auxiliar(sc,adr):
 def call_broadcast_client(ip,port):
     ip_tracker = broadcast_client(ip,port)
     print('encontre con el broadcast al ' + str(ip_tracker))
-
-
+    
+    
 def begin_server():
     s = socket.socket(type=socket.SOCK_STREAM)
     #print('type ip: ')
-    ip = 'localhost'#input()
+    ip = '10.6.227.15'#input()
     print('type port: ')
     port = int(input())
     s.bind((ip,port))
     # s.bind(('localhost',8080))
     s.listen(10)
 
-    thr = threading.Thread(target = broadcast_server,args = ('191.121.116.10',port,))
+    thr = threading.Thread(target = broadcast_server,args = ('10.6.227.15',port,))
     thr.start()
 
-    thr = threading.Thread(target = call_broadcast_client,args = ('191.121.116.10',port,))
+    thr = threading.Thread(target = call_broadcast_client,args = ('10.6.227.15',port,))
     thr.start()
 
     while True:
@@ -116,9 +116,9 @@ def broadcast_server(ip,port):
     while True:
         data, addr = server.recvfrom(1024)
         if int(data.decode()) > 0 and int(data.decode()) != port:# and ip != addr[0]:
+            print(data.decode())
             if not is_conecting.__contains__(int(data.decode())):
                 is_conecting.append(int(data.decode()))
-                print('conection from ' + data.decode())
                 th = threading.Thread(target = broadcast_server_auxiliar,args =(addr[0],data.decode(),ip,port,))
                 th.start()
 
@@ -145,6 +145,7 @@ def broadcast_server_auxiliar(ip,port,my_ip,my_port):
     try:
         s.connect((ip,int(port) + 1000))
         answer = s.recv(4)
+        print('conection from ' + str(int(port) + 1000))
         pack = str((my_ip,my_port))
         s.send(pack.encode())
         answer = s.recv(4)

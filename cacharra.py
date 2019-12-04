@@ -1,16 +1,27 @@
+s = socket.socket(type=socket.SOCK_STREAM)
+    #print('type ip: ')
+    ip = 'localhost'#input()
+    print('type port: ')
+    port = int(input())
+    s.bind((ip,port))
+    # s.bind(('localhost',8080))
+    s.listen(10)
 
-ipList = "[('10.42.0.92', 60406),('10.42.0.1', 33086)]"
+    thr = threading.Thread(target = broadcast_server,args = ('191.121.116.10',port,))
+    thr.start()
 
-resultList = []
-ipList = ipList[1:-1]
-ipList = ipList.split(',')
-temp = None
-for i in range(len(ipList)):
-    if i % 2 == 0:
-        temp = ipList[i][2:-1]
-    else:
-        resultList.append((temp,int(ipList[i][:-1])))
-print(resultList)
-# ipList = ipList.split(')')
-# ipList = list(ipList.split(','))
-# print(ipList)
+    thr = threading.Thread(target = call_broadcast_client,args = ('191.121.116.10',port,))
+    thr.start()
+
+    while True:
+        print('waiting for peers')
+        sc , adr = s.accept()
+
+        print(adr[0] + ' ' + str(adr[1]))
+        th = threading.Thread(target = auxiliar,args =(sc,adr,))
+        th.start()
+        
+        
+
+    
+    s.close()

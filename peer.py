@@ -71,7 +71,7 @@ class A:
 
         print('broadcast_input')
         temp = input()
-        ipTracker, portTracker = broadcast_client('192.168.49.145',int(temp))
+        ipTracker, portTracker = broadcast_client('10.6.227.15',int(temp))
         print('-------------------------------------------------------')
 
         try:
@@ -267,7 +267,7 @@ class A:
         return []
 
 
-ip = '192.168.49.145'
+ip = '10.6.227.15'
 print('type peer port')
 port = input()
 

@@ -1,15 +1,13 @@
-import chord, socket, struct, hashlib, sys, threading, time
+import chord, socket, struct, hashlib, sys, threading, time, dill
 
-server_node = chord.Node(1)
-server_node.join(server_node)
-tracker_list = []
+server_node = None
+
 
 def create_node(ip,port):
+    global server_node
     h = str(port)
     h = hashlib.sha256(h.encode())
     n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
-    print(n)
-    print(server_node.is_there(n))
     if not server_node.is_there(n) == n:
         new_node = chord.Node(n)
         new_node.join(server_node)
@@ -21,6 +19,7 @@ def handshake(sc):
         sc.send(b'done')
 
 def request(sc,adr):
+    global server_node
     create_node(adr[0],adr[1])
     try:
         pack = sc.recv(1024)
@@ -34,7 +33,7 @@ def request(sc,adr):
     if pack.decode() == 'list':
         sc.send(b'done')
         torrent_list = []
-        torrent_list = server_node.get_info(1,torrent_list)
+        torrent_list = server_node.get_info(server_node.id,torrent_list)
         sc.send(str(torrent_list).encode())
     if pack.decode() == 'download':
         sc.send(b'done')
@@ -64,6 +63,7 @@ def request(sc,adr):
 def auxiliar(sc,adr):
     handshake(sc)
     pack = sc.recv(1024)
+    print('server ' + pack.decode())
     pack = int(pack.decode())
     sc.send(b'done')
     boolean = True
@@ -72,25 +72,48 @@ def auxiliar(sc,adr):
     sc.close()
 
 def call_broadcast_client(ip,port):
+    global server_node
     ip_tracker = broadcast_client(ip,port)
     print('encontre con el broadcast al ' + str(ip_tracker))
-    
-
+    s = socket.socket(type=socket.SOCK_STREAM)
+    try:
+        s.connect(ip_tracker)
+        s.send(b'hello')
+        answer = s.recv(4)
+        pack = str(port)
+        s.send(pack.encode())
+        answer = s.recv(4)
+        s.send(b'exit')
+        answer = s.recv(4)
+        create_node(ip,port)
+        s.close()
+    except:
+        s.close()
 
 def begin_server():
+    global server_node
     s = socket.socket(type=socket.SOCK_STREAM)
     #print('type ip: ')
-    ip = 'localhost'#input()
+    ip = '10.6.227.15'#input()
     print('type port: ')
     port = int(input())
     s.bind((ip,port))
     s.listen(10)
 
-    thr = threading.Thread(target = broadcast_server,args = ('192.168.49.145',port,))
-    thr.start()
-
-    thr = threading.Thread(target = call_broadcast_client,args = ('192.168.49.145',port,))
-    thr.start()
+    print('type of node')
+    type_node = input()
+    if type_node == 'initial':
+        h = str(port)
+        h = hashlib.sha256(h.encode())
+        n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
+        server_node = chord.Node(n)
+        server_node.join(server_node)
+        thr = threading.Thread(target = broadcast_server,args = (ip,port,))
+        thr.start()
+    else:
+        call_broadcast_client(ip,port)
+        thr = threading.Thread(target = broadcast_server,args = (ip,port,))
+        thr.start()
 
     while True:
         print('waiting for peers')
@@ -119,7 +142,6 @@ def broadcast_server(ip,port):
         if int(data.decode()) > 0 and int(data.decode()) != port:# and ip != addr[0]:
             print(data.decode())
             if not is_conecting.__contains__(int(data.decode())):
-                print('me conecte')
                 is_conecting.append(int(data.decode()))
                 th = threading.Thread(target = broadcast_server_auxiliar,args =(addr[0],data.decode(),ip,port,))
                 th.start()
@@ -143,14 +165,17 @@ def broadcast_client(ip,port):
     return lista[0]
 
 def broadcast_server_auxiliar(ip,port,my_ip,my_port):
+    global server_node
     s = socket.socket(type=socket.SOCK_STREAM)
     try:
         s.connect((ip,int(port) + 1000))
         answer = s.recv(7)
+        print(answer.decode())
         print('conection from ' + str(int(port) + 1000))
         if answer.decode() == 'tracker':
-            print('entro un tracker')
-            tracker_list.append((ip,int(port) + 1000))
+            print('un tracker se esta uniendo')
+            instance = dill.dumps(server_node)
+            s.send(instance)
         pack = str((my_ip,my_port))
         s.send(pack.encode())
         answer = s.recv(4)
@@ -159,11 +184,14 @@ def broadcast_server_auxiliar(ip,port,my_ip,my_port):
         s.close()
 
 def broadcast_client_auxiliar(ip,port,lista):
+    global server_node
     s = socket.socket(type=socket.SOCK_STREAM)
     s.bind((ip,port))
     s.listen(1)
     sc , adr = s.accept()
     sc.send(b'tracker')
+    instance = sc.recv(1024)
+    server_node = dill.loads(instance)
     pack = sc.recv(1024)
     sc.send(b'done')
     pack = pack.decode()
