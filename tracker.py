@@ -64,12 +64,13 @@ def request(sc,adr):
 def auxiliar(sc,adr):
     handshake(sc)
     pack = sc.recv(1024)
-    print('server ' + pack.decode())
+    #print('server ' + pack.decode())
     pack = int(pack.decode())
     sc.send(b'done')
     boolean = True
     while boolean:
         boolean = request(sc,(adr[0],pack))
+    #print('close')
     sc.close()
 
 def call_broadcast_client(ip,port):
@@ -90,6 +91,7 @@ def call_broadcast_client(ip,port):
         answer = s.recv(4)
         print('yes')
         s.close()
+        create_node(ip,port)
     except:
         s.close()
 
@@ -143,7 +145,7 @@ def broadcast_server(ip,port):
         data, addr = server.recvfrom(1024)
         if int(data.decode()) > 0 and int(data.decode()) != port:# and ip != addr[0]:
             if not is_conected.__contains__(int(data.decode())):
-                print(data.decode())
+                #print(data.decode())
                 is_conected.append(int(data.decode()))
                 th = threading.Thread(target = broadcast_server_auxiliar,args =(addr[0],data.decode(),ip,port,))
                 th.start()
@@ -177,8 +179,10 @@ def broadcast_server_auxiliar(ip,port,my_ip,my_port):
         print('conection from ' + str(int(port) + 1000))
         if answer.decode() == 'tracker':
             print('un tracker se esta uniendo')
-            # instance = dill.dumps(server_node)
-            # s.send(instance)
+            instance = dill.dumps(server_node)
+            s.send(instance)
+            answer = s.recv(4)
+            print('llego el pakete ' + answer.decode())
         else:
             for i in range(len(is_conected)):
                 if is_conected[i] == int(port):
@@ -197,8 +201,9 @@ def broadcast_client_auxiliar(ip,port,lista):
     s.listen(1)
     sc , adr = s.accept()
     sc.send(b'tracker')
-    # instance = sc.recv(1024)
-    # server_node = dill.loads(instance)
+    instance = sc.recv(1024)
+    server_node = dill.loads(instance)
+    sc.send(b'done')
     pack = sc.recv(1024)
     sc.send(b'done')
     pack = pack.decode()
