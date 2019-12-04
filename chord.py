@@ -17,7 +17,7 @@ def periodically(number):
 
 class Node:
     def __init__(self,id):
-        print('id ' + str(id))
+        #print('id ' + str(id))
         self.id = id
         self.storage = {}
         self.info = []
