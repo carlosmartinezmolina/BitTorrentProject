@@ -4,9 +4,11 @@ server_node = chord.Node(1)
 server_node.join(server_node)
 
 def create_node(ip,port):
-    h = ip
+    h = str(port)
     h = hashlib.sha256(h.encode())
     n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
+    print(n)
+    print(server_node.is_there(n))
     if not server_node.is_there(n) == n:
         new_node = chord.Node(n)
         new_node.join(server_node)
@@ -60,16 +62,19 @@ def request(sc,adr):
 
 def auxiliar(sc,adr):
     handshake(sc)
+    pack = sc.recv(1024)
+    pack = int(pack.decode())
+    sc.send(b'done')
     boolean = True
     while boolean:
-        boolean = request(sc,adr)
+        boolean = request(sc,(adr[0],pack))
     sc.close()
 
 
 def begin_server():
     s = socket.socket(type=socket.SOCK_STREAM)
-    print('type ip: ')
-    ip = input()
+    #print('type ip: ')
+    ip = 'localhost'#input()
     print('type port: ')
     port = int(input())
     s.bind((ip,port))

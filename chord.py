@@ -17,6 +17,7 @@ def periodically(number):
 
 class Node:
     def __init__(self,id):
+        print('id ' + str(id))
         self.id = id
         self.storage = {}
         self.info = []
@@ -41,6 +42,7 @@ class Node:
         return None
 
     def get_info(self,id,my_list):
+        print('info ' + str(self.id))
         if self.successor().id == id:
             for i in self.successor().info:
                 if not my_list.__contains__(i):
@@ -50,6 +52,7 @@ class Node:
             for i in self.info:
                 if not my_list.__contains__(i):
                     my_list.append(i)
+            self.successor().get_info(id,my_list)
             return my_list
 
 
