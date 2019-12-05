@@ -3,6 +3,7 @@ import os
 import struct
 import socket
 import broad
+import random
 
 class A:
 
@@ -34,8 +35,8 @@ class A:
         archivo = []
         ipList = None
 
-        ip_temp = 8002#input()
-        ipTracker, portTracker = broad.broadcast_client(self.ip, int(ip_temp))
+        ip_temp = random.randint(8000,65000)#input()
+        ipTracker, portTracker = broad.broadcast_client(self.ip, ip_temp)
         print('-------------------------------------------------------')
         try:
             r, w = await asyncio.open_connection(ipTracker, portTracker,
@@ -222,9 +223,9 @@ class A:
             w.write(filename.encode())
         return []
 
-ip = '192.168.49.176'
+ip = '191.121.116.27'
 #print('type peer port')
-port = 8251#input()
+port = random.randint(8000,65000)#input()
 
 a = A(ip, port)
 loop = asyncio.get_event_loop()

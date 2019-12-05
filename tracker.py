@@ -1,4 +1,4 @@
-import chord, socket, struct, hashlib, sys, threading, time, dill
+import chord, socket, struct, hashlib, sys, threading, time, dill, random
 
 server_node = None
 tracker_list = []
@@ -12,14 +12,13 @@ def create_node(ip,port):
     if not server_node.is_there(n) == n:
         new_node = chord.Node(n)
         new_node.join(server_node)
-        if tracker_list.__contains__((ip,port)):
-            
-        thr = threading.Thread(target = update_remote_trackers,args = (ip,port,))
-        thr.start()
+        if not tracker_list.__contains__((ip,port)):
+            thr = threading.Thread(target = update_remote_trackers,args = (ip,port,))
+            thr.start()
 
 def handshake(sc):
     pack = sc.recv(1024)
-    print(pack.decode())
+    #print(pack.decode())
     if pack.decode() == 'hello':
         sc.send(b'done')
 
@@ -93,6 +92,7 @@ def request(sc,adr):
             n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
             ip_list = server_node.get_key(n)
             sc.send(str(ip_list).encode())
+            server_node.put_key(n,adr,pack.decode())
         if pack.decode() == 'upload':
             sc.send(b'done')
             try:
@@ -149,7 +149,6 @@ def request(sc,adr):
             ip_list = server_node.put_key(n,address,pack.decode())
             break
 
-
 def auxiliar(sc,adr):
     handshake(sc)
     pack = sc.recv(1024)
@@ -178,7 +177,7 @@ def call_broadcast_client(ip,port):
         answer = s.recv(4)
         s.send(b'exit')
         answer = s.recv(4)
-        print('yes')
+        #print('yes')
         s.close()
         create_node(ip,port)
     except:
@@ -188,9 +187,13 @@ def begin_server():
     global server_node
     s = socket.socket(type=socket.SOCK_STREAM)
     #print('type ip: ')
-    ip = '1191.121.116.13'#input()
-    print('type port: ')
-    port = int(input())
+    ip = '191.121.116.27'#input()
+    #print('type port: ')
+    port = random.randint(8000,65000)#int(input())
+    x = str(port)
+    x = hashlib.sha256(x.encode())
+    x = int.from_bytes(x.digest(),byteorder = sys.byteorder) % 2**chord.k
+    print(x%10000)
     s.bind((ip,port))
     s.listen(10)
 
@@ -254,7 +257,7 @@ def broadcast_client(ip,port):
         time.sleep(2)
         if len(lista) > 0:
             break
-    print(lista[0])
+    #print(lista[0])
     return lista[0]
 
 def broadcast_server_auxiliar(ip,port,my_ip,my_port):
@@ -271,7 +274,7 @@ def broadcast_server_auxiliar(ip,port,my_ip,my_port):
             instance = dill.dumps(server_node)
             s.send(instance)
             answer = s.recv(4)
-            print('llego el pakete ' + answer.decode())
+            #print('llego el pakete ' + answer.decode())
         else:
             for i in range(len(is_conected)):
                 if is_conected[i] == int(port):
@@ -290,7 +293,12 @@ def broadcast_client_auxiliar(ip,port,lista):
     s.listen(1)
     sc , adr = s.accept()
     sc.send(b'tracker')
-    instance = sc.recv(1024)
+    instance = b''
+    while True:
+        packet = sc.recv(1024)
+        if not packet:
+            break
+        instance += packet
     server_node = dill.loads(instance)
     sc.send(b'done')
     pack = sc.recv(1024)
