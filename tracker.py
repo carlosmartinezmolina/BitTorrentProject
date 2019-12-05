@@ -12,6 +12,10 @@ def create_node(ip,port):
     if not server_node.is_there(n) == n:
         new_node = chord.Node(n)
         new_node.join(server_node)
+        if tracker_list.__contains__((ip,port)):
+            
+        thr = threading.Thread(target = update_remote_trackers,args = (ip,port,))
+        thr.start()
 
 def handshake(sc):
     pack = sc.recv(1024)
@@ -19,47 +23,132 @@ def handshake(sc):
     if pack.decode() == 'hello':
         sc.send(b'done')
 
+def upload_remote_trackers(ip,port,upload_info):
+    for i in tracker_list:
+        s = socket.socket(type=socket.SOCK_STREAM)
+        try:
+            s.connect(i)
+            s.send(b'hello')
+            answer = s.recv(4)
+            pack = str(port)
+            s.send(pack.encode())
+            answer = s.recv(4)
+            s.send(b'remote_upload')
+            answer = s.recv(4)
+            pack = str((ip,port))
+            s.send(pack.encode())
+            answer = s.recv(4)
+            s.send(upload_info.encode())
+            answer = s.recv(4)
+            s.close()
+        except:
+            s.close()
+
+def update_remote_trackers(ip,port):
+    for i in tracker_list:
+        s = socket.socket(type=socket.SOCK_STREAM)
+        try:
+            s.connect(i)
+            s.send(b'hello')
+            answer = s.recv(4)
+            pack = str(port)
+            s.send(pack.encode())
+            answer = s.recv(4)
+            s.send(b'update')
+            answer = s.recv(4)
+            pack = str((ip,port))
+            s.send(pack.encode())
+            answer = s.recv(4)
+            s.close()
+        except:
+            s.close()
+
 def request(sc,adr):
     global server_node
     create_node(adr[0],adr[1])
-    try:
-        pack = sc.recv(1024)
-        if len(pack) == 0:
-                return False
-    except:
-        return False
-    if pack.decode() == 'exit':
-        sc.send(b'done')
-        return False
-    if pack.decode() == 'list':
-        sc.send(b'done')
-        torrent_list = []
-        torrent_list = server_node.get_info(server_node.id,torrent_list)
-        sc.send(str(torrent_list).encode())
-    if pack.decode() == 'download':
-        sc.send(b'done')
+    while True:
         try:
             pack = sc.recv(1024)
             if len(pack) == 0:
-                return False
+                    break
         except:
-            return False
-        h = hashlib.sha256(pack)
-        n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
-        ip_list = server_node.get_key(n)
-        sc.send(str(ip_list).encode())
-    if pack.decode() == 'upload':
-        sc.send(b'done')
-        try:
-            pack = sc.recv(1024)
-            if len(pack) == 0:
-                return False
-        except:
-            return False
-        h = hashlib.sha256(pack)
-        n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
-        ip_list = server_node.put_key(n,adr,pack.decode())
-    return True
+            break
+        if pack.decode() == 'exit':
+            sc.send(b'done')
+            break
+        if pack.decode() == 'list':
+            sc.send(b'done')
+            torrent_list = []
+            torrent_list = server_node.get_info(server_node.id,torrent_list)
+            sc.send(str(torrent_list).encode())
+        if pack.decode() == 'download':
+            sc.send(b'done')
+            try:
+                pack = sc.recv(1024)
+                if len(pack) == 0:
+                    break
+            except:
+                break
+            h = hashlib.sha256(pack)
+            n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
+            ip_list = server_node.get_key(n)
+            sc.send(str(ip_list).encode())
+        if pack.decode() == 'upload':
+            sc.send(b'done')
+            try:
+                pack = sc.recv(1024)
+                if len(pack) == 0:
+                    break
+            except:
+                break
+            h = hashlib.sha256(pack)
+            n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
+            ip_list = server_node.put_key(n,adr,pack.decode())
+            thr = threading.Thread(target = upload_remote_trackers,args = (adr[0],adr[1],pack.decode(),))
+            thr.start()
+        if pack.decode() == 'update':
+            sc.send(b'done')
+            try:
+                pack = sc.recv(1024)
+                if len(pack) == 0:
+                    break
+            except:
+                break
+            pack = pack.decode()
+            pack = pack[1:-1]
+            pack = pack.split(',')
+            l = pack[0].split("'")
+            pack = (l[1],int(pack[1]))
+            address = pack
+            sc.send(b'done')
+            create_node(address[0],address[1])
+            break
+        if pack.decode() == 'remote_upload':
+            sc.send(b'done')
+            try:
+                pack = sc.recv(1024)
+                if len(pack) == 0:
+                    break
+            except:
+                break
+            pack = pack.decode()
+            pack = pack[1:-1]
+            pack = pack.split(',')
+            l = pack[0].split("'")
+            pack = (l[1],int(pack[1]))
+            address = pack
+            sc.send(b'done')
+            try:
+                pack = sc.recv(1024)
+                if len(pack) == 0:
+                    break
+            except:
+                break
+            h = hashlib.sha256(pack)
+            n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
+            ip_list = server_node.put_key(n,address,pack.decode())
+            break
+
 
 def auxiliar(sc,adr):
     handshake(sc)
@@ -99,7 +188,7 @@ def begin_server():
     global server_node
     s = socket.socket(type=socket.SOCK_STREAM)
     #print('type ip: ')
-    ip = '10.6.227.15'#input()
+    ip = '1191.121.116.13'#input()
     print('type port: ')
     port = int(input())
     s.bind((ip,port))

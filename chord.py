@@ -17,7 +17,6 @@ def periodically(number):
 
 class Node:
     def __init__(self,id):
-        #print('id ' + str(id))
         self.id = id
         self.storage = {}
         self.info = []
@@ -41,18 +40,21 @@ class Node:
             return self.storage[key]
         return None
 
-    def get_info(self,id,my_list):
-        print('info ' + str(self.id))
+    def get_info(self,id,my_list,lista = []):
+        print('info ' + str(self.id%10000))
+        #print('info sucesor ' + str(self.successor().id%10000))
         if self.successor().id == id:
             for i in self.successor().info:
                 if not my_list.__contains__(i):
                     my_list.append(i)
+            #print('termino')
             return my_list
         else:
             for i in self.info:
                 if not my_list.__contains__(i):
                     my_list.append(i)
             self.successor().get_info(id,my_list)
+            #print('termino')
             return my_list
 
 
@@ -179,7 +181,11 @@ class Node:
             # print('finger')
             self.update_others()
             # print('----+++++')
-            # print(str(self.id) + ': ')
+            # print(str(self.id%10000) + ': ')
+            # print(self.finger_table[0].id%10000)
+            # print(self.finger_table[1].id%10000)
+            # print(self.finger_table[2].id%10000)
+            # print(self.finger_table[3].id%10000)
             # print('Predecesor: ' + str(self.predeccessor.id))
             # print('Sucesor: ' + str(self.successor().id))
             # print('-----')
@@ -192,7 +198,7 @@ class Node:
             # print('Sucesor: ' + str(self.successor().successor().id))
         
 
-    @periodically(10)
+    @periodically(2)
     def stabilize(self):
         x = self.successor().predeccessor
         if self.between(x.id,self.id,self.successor().id):
@@ -203,7 +209,7 @@ class Node:
         if self.predeccessor is None or self.between(node.id,self.predeccessor.id,self.id):
             self.predeccessor = node
 
-    @periodically(10)
+    @periodically(2)
     def fix_finger(self):
         next = random.randint(0,self.m - 1)
         self.finger_table[next] = self.find_successor(self.start[next])
