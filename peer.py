@@ -223,7 +223,7 @@ class A:
             w.write(filename.encode())
         return []
 
-ip = '191.121.116.27'
+ip = '10.6.226.181'
 #print('type peer port')
 port = random.randint(8000,65000)#input()
 

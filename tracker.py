@@ -187,7 +187,7 @@ def begin_server():
     global server_node
     s = socket.socket(type=socket.SOCK_STREAM)
     #print('type ip: ')
-    ip = '191.121.116.27'#input()
+    ip = '10.6.226.181'#input()
     #print('type port: ')
     port = random.randint(8000,65000)#int(input())
     x = str(port)
@@ -273,6 +273,7 @@ def broadcast_server_auxiliar(ip,port,my_ip,my_port):
             print('un tracker se esta uniendo')
             instance = dill.dumps(server_node)
             s.send(instance)
+            #print('termino')
             answer = s.recv(4)
             #print('llego el pakete ' + answer.decode())
         else:
@@ -292,13 +293,18 @@ def broadcast_client_auxiliar(ip,port,lista):
     s.bind((ip,port))
     s.listen(1)
     sc , adr = s.accept()
+    sc.settimeout(2)
     sc.send(b'tracker')
     instance = b''
     while True:
-        packet = sc.recv(1024)
-        if not packet:
+        try:
+            packet = sc.recv(1024)
+            instance += packet
+            #print('yes')
+        except:
+            #print('no')
             break
-        instance += packet
+    #instance = sc.recv(8000)
     server_node = dill.loads(instance)
     sc.send(b'done')
     pack = sc.recv(1024)
