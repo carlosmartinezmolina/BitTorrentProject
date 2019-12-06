@@ -215,7 +215,7 @@ class A:
             ip_list = await r.read(1024)
             a=ip_list.decode()
             print(ip_list.decode())
-            b = self.parsingList(a)
+            b = await self.parsingList(a)
             return b
         if entry == 'upload':
             w.write(b'upload')
