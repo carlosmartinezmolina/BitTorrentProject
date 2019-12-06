@@ -1,0 +1,2 @@
+falta manejar la salida de los nodos(con la replicacion)
+revisar la union a la red
