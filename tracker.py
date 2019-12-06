@@ -16,12 +16,13 @@ def create_node(ip,port):
     h = hashlib.sha256(h.encode())
     n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
     if not server_node.is_there(n):
+        print('yes')
         new_node = chord.Node(n)
         new_node.join(server_node)
         if not _cliente:
             server_node.put_tracker((ip,port))
-        #torrent_list = []
-        #torrent_list = server_node.get_trackers(server_node.id,torrent_list)
+        torrent_list = []
+        torrent_list = server_node.get_trackers(server_node.id,torrent_list)
         if (ip,port) == (_ip,_port) or _cliente:
             thr = threading.Thread(target = update_remote_trackers,args = (ip,port,))
             thr.start()
@@ -42,9 +43,9 @@ def upload_remote_trackers(ip,port,upload_info):
     torrent_list = []
     torrent_list = server_node.get_trackers(server_node.id,torrent_list)
     lock.release()
+    print(torrent_list)
     for i in torrent_list:
         if i != (ip,port) and i != (_ip,_port):
-            print('upload remoto ' + str(i))
             s = socket.socket(type=socket.SOCK_STREAM)
             try:
                 s.connect(i)
@@ -100,12 +101,14 @@ def request(sc,adr):
     if answer.decode() != 'update_trackers':
         sc.send(b'done')
         create_node(adr[0],adr[1])
-        return
+        if not _cliente:
+            return
     else:
         sc.send(b'done')
     while True:
         try:
             pack = sc.recv(1024)
+            #print(pack.decode())
             if len(pack) == 0:
                 break
         except:
@@ -135,6 +138,8 @@ def request(sc,adr):
             lock.acquire()
             server_node.put_key(n,adr,pack.decode())
             lock.release()
+            thr = threading.Thread(target = upload_remote_trackers,args = (adr[0],adr[1],pack.decode(),))
+            thr.start()
         if pack.decode() == 'upload':
             sc.send(b'done')
             try:
@@ -152,6 +157,7 @@ def request(sc,adr):
             thr.start()
         if pack.decode() == 'remote_upload':
             sc.send(b'done')
+            print('entrooooo')
             try:
                 pack = sc.recv(1024)
                 if len(pack) == 0:
@@ -171,6 +177,7 @@ def request(sc,adr):
                     break
             except:
                 break
+            sc.send(b'done')
             h = hashlib.sha256(pack)
             n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
             lock.acquire()
@@ -221,6 +228,7 @@ def begin_server():
     x = str(port)
     x = hashlib.sha256(x.encode())
     x = int.from_bytes(x.digest(),byteorder = sys.byteorder) % 2**chord.k
+    print(x%10000)
     print(port)
     s.bind((ip,port))
     s.listen(10)
