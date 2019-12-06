@@ -1,9 +1,5 @@
-import asyncio
-import os
-import struct
-import socket
-import broad
-import random
+import asyncio, os, struct, socket, broad, random
+
 
 class A:
 
@@ -56,17 +52,18 @@ class A:
         
         if ipList is not None and ipList[0] != 'exit':
 
-            #ipList = await self.parsingList(ipList)
-            
+
             for ip, port in ipList:
                 try:
                     reader, writer = await asyncio.open_connection(ip, port,
-                    loop = loop)                    
+                    loop = loop)
 
                     writer.write(m.encode())
                     await writer.drain()                    
-
+                    #/home/eziel/Documents/PythonBook.pdf
+                    print('+++++++++++++++++++++++++++++++++++++++++++++++++++')
                     data = await reader.read(4)
+                    print('+++++++++++++++++++++++++++++++++++++++++++++++++++')
 
                     message = struct.unpack('I',data)
 
@@ -105,7 +102,9 @@ class A:
                 #print('addrees to save the file')
                 #/home/eziel/Downloads
                 #/home/eziel/Documents/PythonBook.pdf
-                path = '/home/eziel/Downloads/PythonBook.pdf'
+                s=self.downloadFileName.split('/')
+                t = s[len(s)-1]
+                path = '/home/eziel/Downloads/' + t
                 f = open(path,'ab+')
                 for i in range(len(archivo)):
                     f.write(archivo[i])
@@ -123,6 +122,7 @@ class A:
         try:
             data = await reader.read(c)
             message = data.decode()
+            print('=====================================================')
             print(message)
             addr = writer.get_extra_info('peername')
             print("Received %r from %r" % (message, addr))
@@ -225,9 +225,8 @@ class A:
             w.write(filename.encode())
         return []
 
-ip = '192.168.43.148'
-#print('type peer port')
-port = random.randint(8000,65000)#input()
+ip = '192.168.43.35'
+port = random.randint(8000,65000)
 
 a = A(ip, port)
 loop = asyncio.get_event_loop()
