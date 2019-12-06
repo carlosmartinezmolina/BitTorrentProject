@@ -221,7 +221,8 @@ def begin_server():
     global _port
     global _ip
     s = socket.socket(type=socket.SOCK_STREAM)
-    ip = '192.168.43.148'#input()
+    print('escribe el ip de tu maquina')
+    ip = input()
     port = random.randint(8000,65000)#int(input())
     _ip = ip
     _port = port

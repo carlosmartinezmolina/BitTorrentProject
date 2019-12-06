@@ -1,4 +1,4 @@
-import asyncio, os, struct, socket, broad, random
+import asyncio, os, struct, socket, broad, random, dill
 
 
 class A:
@@ -222,10 +222,12 @@ class A:
             answer = await r.read(4)
             print('type a filename: ')
             filename = input()
-            w.write(filename.encode())
+            serializado = dill.dumps(filename)
+            w.write(serializado)
         return []
 
-ip = '192.168.43.35'
+print('escribe el ip de tu maquina')
+ip = input()
 port = random.randint(8000,65000)
 
 a = A(ip, port)
