@@ -1,75 +1,113 @@
 import chord, socket, struct, hashlib, sys, threading, time, dill, random
 
 server_node = None
-tracker_list = []
 is_conected = []
+_ip = None
+_port = None
+lock = threading.RLock()
+ip_tracker = None
+_cliente = None
+_cliente_ip = None
 
 def create_node(ip,port):
     global server_node
+    lock.acquire()
     h = str(port)
     h = hashlib.sha256(h.encode())
     n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
-    if not server_node.is_there(n) == n:
+    if not server_node.is_there(n):
         new_node = chord.Node(n)
         new_node.join(server_node)
-        if not tracker_list.__contains__((ip,port)):
+        if not _cliente:
+            server_node.put_tracker((ip,port))
+        #torrent_list = []
+        #torrent_list = server_node.get_trackers(server_node.id,torrent_list)
+        if (ip,port) == (_ip,_port) or _cliente:
             thr = threading.Thread(target = update_remote_trackers,args = (ip,port,))
             thr.start()
+    lock.release()
 
 def handshake(sc):
+    global _cliente
     pack = sc.recv(1024)
-    #print(pack.decode())
-    if pack.decode() == 'hello':
-        sc.send(b'done')
+    print(pack.decode())
+    if pack.decode() == 'cliente':
+        _cliente = True
+    else:
+        _cliente = False
+    sc.send(b'done')
 
 def upload_remote_trackers(ip,port,upload_info):
-    for i in tracker_list:
-        s = socket.socket(type=socket.SOCK_STREAM)
-        try:
-            s.connect(i)
-            s.send(b'hello')
-            answer = s.recv(4)
-            pack = str(port)
-            s.send(pack.encode())
-            answer = s.recv(4)
-            s.send(b'remote_upload')
-            answer = s.recv(4)
-            pack = str((ip,port))
-            s.send(pack.encode())
-            answer = s.recv(4)
-            s.send(upload_info.encode())
-            answer = s.recv(4)
-            s.close()
-        except:
-            s.close()
+    lock.acquire()
+    torrent_list = []
+    torrent_list = server_node.get_trackers(server_node.id,torrent_list)
+    lock.release()
+    for i in torrent_list:
+        if i != (ip,port) and i != (_ip,_port):
+            print('upload remoto ' + str(i))
+            s = socket.socket(type=socket.SOCK_STREAM)
+            try:
+                s.connect(i)
+                s.send(b'hello')
+                answer = s.recv(4)
+                pack = str(port)
+                s.send(pack.encode())
+                answer = s.recv(4)
+                s.send(b'update_trackers')
+                answer = s.recv(4)
+                s.send(b'remote_upload')
+                answer = s.recv(4)
+                pack = str((ip,port))
+                s.send(pack.encode())
+                answer = s.recv(4)
+                s.send(upload_info.encode())
+                answer = s.recv(4)
+                s.close()
+            except:
+                s.close()
 
 def update_remote_trackers(ip,port):
-    for i in tracker_list:
-        s = socket.socket(type=socket.SOCK_STREAM)
-        try:
-            s.connect(i)
-            s.send(b'hello')
-            answer = s.recv(4)
-            pack = str(port)
-            s.send(pack.encode())
-            answer = s.recv(4)
-            s.send(b'update')
-            answer = s.recv(4)
-            pack = str((ip,port))
-            s.send(pack.encode())
-            answer = s.recv(4)
-            s.close()
-        except:
-            s.close()
+    lock.acquire()
+    torrent_list = []
+    torrent_list = server_node.get_trackers(server_node.id,torrent_list)
+    lock.release()
+    print(torrent_list)
+    temp = ip_tracker
+    if _cliente:
+        temp = (_ip,_port)
+    for i in torrent_list:
+        if i != (ip,port) and i != temp and i != (_ip,_port):
+            print('tracker remoto ' + str(i) + ' ' + str((ip,port)) + ' ' + str(ip_tracker) )
+            s = socket.socket(type=socket.SOCK_STREAM)
+            try:
+                s.connect(i)
+                s.send(b'hello')
+                answer = s.recv(4)
+                pack = str(port)
+                s.send(pack.encode())
+                answer = s.recv(4)
+                s.send(b'updata_trackers')
+                answer = s.recv(4)
+                s.send(b'exit')
+                answer = s.recv(4)
+                s.close()
+            except:
+                s.close()
 
 def request(sc,adr):
     global server_node
-    create_node(adr[0],adr[1])
+    answer = sc.recv(15)
+    if answer.decode() != 'update_trackers':
+        sc.send(b'done')
+        create_node(adr[0],adr[1])
+        return
+    else:
+        sc.send(b'done')
     while True:
         try:
             pack = sc.recv(1024)
             if len(pack) == 0:
-                    break
+                break
         except:
             break
         if pack.decode() == 'exit':
@@ -77,8 +115,10 @@ def request(sc,adr):
             break
         if pack.decode() == 'list':
             sc.send(b'done')
+            lock.acquire()
             torrent_list = []
             torrent_list = server_node.get_info(server_node.id,torrent_list)
+            lock.release()
             sc.send(str(torrent_list).encode())
         if pack.decode() == 'download':
             sc.send(b'done')
@@ -92,7 +132,9 @@ def request(sc,adr):
             n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
             ip_list = server_node.get_key(n)
             sc.send(str(ip_list).encode())
+            lock.acquire()
             server_node.put_key(n,adr,pack.decode())
+            lock.release()
         if pack.decode() == 'upload':
             sc.send(b'done')
             try:
@@ -103,26 +145,11 @@ def request(sc,adr):
                 break
             h = hashlib.sha256(pack)
             n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
+            lock.acquire()
             ip_list = server_node.put_key(n,adr,pack.decode())
+            lock.release()
             thr = threading.Thread(target = upload_remote_trackers,args = (adr[0],adr[1],pack.decode(),))
             thr.start()
-        if pack.decode() == 'update':
-            sc.send(b'done')
-            try:
-                pack = sc.recv(1024)
-                if len(pack) == 0:
-                    break
-            except:
-                break
-            pack = pack.decode()
-            pack = pack[1:-1]
-            pack = pack.split(',')
-            l = pack[0].split("'")
-            pack = (l[1],int(pack[1]))
-            address = pack
-            sc.send(b'done')
-            create_node(address[0],address[1])
-            break
         if pack.decode() == 'remote_upload':
             sc.send(b'done')
             try:
@@ -146,26 +173,26 @@ def request(sc,adr):
                 break
             h = hashlib.sha256(pack)
             n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
+            lock.acquire()
             ip_list = server_node.put_key(n,address,pack.decode())
+            lock.release()
             break
 
 def auxiliar(sc,adr):
     handshake(sc)
     pack = sc.recv(1024)
-    #print('server ' + pack.decode())
     pack = int(pack.decode())
     sc.send(b'done')
-    boolean = True
-    while boolean:
-        boolean = request(sc,(adr[0],pack))
-    #print('close')
+    request(sc,(adr[0],pack))
     sc.close()
 
 def call_broadcast_client(ip,port):
     global server_node
-    global tracker_list
+    global ip_tracker
     ip_tracker = broadcast_client(ip,port)
-    tracker_list.append(ip_tracker)
+    lock.acquire()
+    server_node.put_tracker((_ip,_port))
+    create_node(ip,port)
     print('encontre con el broadcast al ' + str(ip_tracker))
     s = socket.socket(type=socket.SOCK_STREAM)
     try:
@@ -175,25 +202,26 @@ def call_broadcast_client(ip,port):
         pack = str(port)
         s.send(pack.encode())
         answer = s.recv(4)
-        s.send(b'exit')
+        s.send(b'updato_trackers')
         answer = s.recv(4)
-        #print('yes')
         s.close()
-        create_node(ip,port)
     except:
         s.close()
+    lock.release()
 
 def begin_server():
     global server_node
+    global _port
+    global _ip
     s = socket.socket(type=socket.SOCK_STREAM)
-    #print('type ip: ')
-    ip = '10.6.226.181'#input()
-    #print('type port: ')
+    ip = '192.168.43.148'#input()
     port = random.randint(8000,65000)#int(input())
+    _ip = ip
+    _port = port
     x = str(port)
     x = hashlib.sha256(x.encode())
     x = int.from_bytes(x.digest(),byteorder = sys.byteorder) % 2**chord.k
-    print(x%10000)
+    print(port)
     s.bind((ip,port))
     s.listen(10)
 
@@ -203,8 +231,11 @@ def begin_server():
         h = str(port)
         h = hashlib.sha256(h.encode())
         n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
+        lock.acquire()
         server_node = chord.Node(n)
         server_node.join(server_node)
+        server_node.put_tracker((_ip,_port))
+        lock.release()
         thr = threading.Thread(target = broadcast_server,args = (ip,port,))
         thr.start()
     else:
@@ -237,7 +268,6 @@ def broadcast_server(ip,port):
         data, addr = server.recvfrom(1024)
         if int(data.decode()) > 0 and int(data.decode()) != port:# and ip != addr[0]:
             if not is_conected.__contains__(int(data.decode())):
-                #print(data.decode())
                 is_conected.append(int(data.decode()))
                 th = threading.Thread(target = broadcast_server_auxiliar,args =(addr[0],data.decode(),ip,port,))
                 th.start()
@@ -257,7 +287,6 @@ def broadcast_client(ip,port):
         time.sleep(2)
         if len(lista) > 0:
             break
-    #print(lista[0])
     return lista[0]
 
 def broadcast_server_auxiliar(ip,port,my_ip,my_port):
@@ -267,15 +296,21 @@ def broadcast_server_auxiliar(ip,port,my_ip,my_port):
     try:
         s.connect((ip,int(port) + 1000))
         answer = s.recv(7)
-        print(answer.decode())
         print('conection from ' + str(int(port) + 1000))
+        s.send(b'done')
         if answer.decode() == 'tracker':
-            print('un tracker se esta uniendo')
+            pakete = s.recv(1024)
+            pakete = pakete.decode()
+            pakete = pakete[1:-1]
+            pakete = pakete.split(',')
+            l = pakete[0].split("'")
+            p = (l[1],int(pakete[1]))
+            lock.acquire()
+            server_node.put_tracker(p)
+            lock.release()
             instance = dill.dumps(server_node)
             s.send(instance)
-            #print('termino')
             answer = s.recv(4)
-            #print('llego el pakete ' + answer.decode())
         else:
             for i in range(len(is_conected)):
                 if is_conected[i] == int(port):
@@ -293,18 +328,18 @@ def broadcast_client_auxiliar(ip,port,lista):
     s.bind((ip,port))
     s.listen(1)
     sc , adr = s.accept()
-    sc.settimeout(2)
+    sc.settimeout(1)
     sc.send(b'tracker')
+    answer = sc.recv(4)
+    pack = str((ip,port-1000))
+    sc.send(pack.encode())
     instance = b''
     while True:
         try:
             packet = sc.recv(1024)
             instance += packet
-            #print('yes')
         except:
-            #print('no')
             break
-    #instance = sc.recv(8000)
     server_node = dill.loads(instance)
     sc.send(b'done')
     pack = sc.recv(1024)
@@ -315,6 +350,7 @@ def broadcast_client_auxiliar(ip,port,lista):
     l = pack[0].split("'")
     pack = (l[1],int(pack[1]))
     lista.append(pack)
+
     s.close()
 
 begin_server()

@@ -26,6 +26,7 @@ def broadcast_client_auxiliar(ip,port,lista):
     s.listen(1)
     sc , adr = s.accept()
     sc.send(b'cliente')
+    p = sc.recv(4)
     pack = sc.recv(1024)
     sc.send(b'done')
     pack = pack.decode()

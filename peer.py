@@ -176,12 +176,14 @@ class A:
         self.clientes -= 1
 
     async def handshake(self, w, r):
-        w.write(b'hello')
+        w.write(b'cliente')
         answer = await r.read(4)
         print(answer.decode())
         port = str(self.port)
         w.write(port.encode())
         print('puerto enviado al tracker %r' %self.port)        
+        answer = await r.read(4)
+        w.write(b'updato_trackers')
         answer = await r.read(4)
         return None
 
@@ -223,7 +225,7 @@ class A:
             w.write(filename.encode())
         return []
 
-ip = '10.6.226.181'
+ip = '192.168.43.148'
 #print('type peer port')
 port = random.randint(8000,65000)#input()
 

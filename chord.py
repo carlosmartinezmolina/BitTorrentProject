@@ -20,6 +20,7 @@ class Node:
         self.id = id
         self.storage = {}
         self.info = []
+        self.trackers = []
         self.m = int(math.log2(k))
         self.finger_table = [None] * self.m
         self.start = [None] * self.m
@@ -31,8 +32,14 @@ class Node:
         self.stabilize()
         self.fix_finger()
 
-    def is_there(self,id):
-        return self.closest_preceding_node(id).successor().id
+    def is_there(self,id,list=[]):
+        if list.__contains__(self.successor().id):
+            return False
+        if self.successor().id == id:
+            return True
+        else:
+            list.append(self.id)
+            return self.successor().is_there(id,list) 
 
     def get_key(self,key):
         node = self.closest_preceding_node(key).successor()
@@ -40,7 +47,7 @@ class Node:
             return self.storage[key]
         return None
 
-    def get_info(self,id,my_list,lista = []):
+    def get_info(self,id,my_list):
         print('info ' + str(self.id%10000))
         #print('info sucesor ' + str(self.successor().id%10000))
         if self.successor().id == id:
@@ -57,6 +64,22 @@ class Node:
             #print('termino')
             return my_list
 
+    def get_trackers(self,id,my_list):
+        print('infoT ' + str(self.id%10000))
+        #print('info sucesor ' + str(self.successor().id%10000))
+        if self.successor().id == id:
+            for i in self.successor().trackers:
+                if not my_list.__contains__(i):
+                    my_list.append(i)
+            #print('termino')
+            return my_list
+        else:
+            for i in self.trackers:
+                if not my_list.__contains__(i):
+                    my_list.append(i)
+            self.successor().get_trackers(id,my_list)
+            #print('termino')
+            return my_list
 
     
     def replicar(self,node,key,value,pack):
@@ -76,6 +99,13 @@ class Node:
         if self.m > 1 and not replicados.__contains__(self.finger_table[1].id):
             self.replicar(self.finger_table[1],key,value,pack)
 
+
+    def put_tracker(self,ip_port):
+        #print('put_tracker ' + str(ip_port))
+        if not self.trackers.__contains__(ip_port):
+            self.trackers.append(ip_port)
+        return
+        
     #list('[1,2,3,132]'[1:-1].split(','))
     def put_key(self,key,value,pack):
         if not self.info.__contains__(pack):
