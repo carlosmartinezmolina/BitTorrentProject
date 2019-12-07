@@ -53,7 +53,7 @@ class A:
         m = self.downloadFileName
         
         if ipList is not None and ipList[0] != 'exit':
-            path = './' + self.downloadFileName
+            path = './files/' + self.downloadFileName
             f = open(path,'ab+')
             for ip, port in ipList:
                 try:
@@ -62,7 +62,7 @@ class A:
 
                     writer.write(m.encode())
                     await writer.drain()                    
-                    #/home/eziel/Documents/PythonBook.pdf
+                    
                     data = await reader.read(4)
 
                     message = struct.unpack('I',data)
@@ -72,7 +72,7 @@ class A:
                     print("Received %r from %r" % (number_packs, addr))
                     self.temp = number_packs
 
-                    #lo q ya se copio
+                    
                     current = str(self.downloadsize)
                     writer.write(current.encode())
                     number_packs -= self.downloadsize                    
@@ -109,10 +109,6 @@ class A:
         try:
             data = await reader.read(c)
             message = data.decode()
-            if message=='hello':
-                self.clientes-=1
-                writer.close()
-                return  
             addr = writer.get_extra_info('peername')
             print("Received %r from %r" % (message, addr))
             size = 0
@@ -231,8 +227,8 @@ class A:
         data['adr'] = adr
         return data
 print('Escribe el ip de tu maquina')
-ip = '191.121.116.8'#input()
-port = random.randint(8000,65000)
+ip = input()
+port = int(input())#random.randint(8000,65000)
 print(port)
 
 a = A(ip, port)
