@@ -8,30 +8,45 @@ lock = threading.RLock()
 ip_tracker = None
 _cliente = None
 _cliente_ip = None
+remote_cliente = None
 
 def create_node(ip,port):
     global server_node
+    global remote_cliente
     lock.acquire()
-    h = ip + str(port)
+    h = str(port)
     h = hashlib.sha256(h.encode())
     n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
     if not server_node.is_there(n):
+        print('yes')
+        print(port)
         new_node = chord.Node(n)
         new_node.join(server_node)
-        if not _cliente:
+        if not _cliente and not remote_cliente:
+            print('no')
             server_node.put_tracker((ip,port))
-        torrent_list = []
-        torrent_list = server_node.get_trackers(server_node.id,torrent_list)
         if (ip,port) == (_ip,_port) or _cliente:
+            print('update')
             thr = threading.Thread(target = update_remote_trackers,args = (ip,port,))
             thr.start()
     lock.release()
 
 def handshake(sc):
     global _cliente
+    global ip_tracker
+    global remote_cliente
     pack = sc.recv(1024)
     if pack.decode() == 'cliente':
         _cliente = True
+        sc.send(b'done')
+        port = sc.recv(1024)
+        ip_tracker = (ip_tracker[0],int(port.decode()))
+    elif pack.decode() == 'remote':
+        _cliente = False
+        remote_cliente = True
+        sc.send(b'done')
+        port = sc.recv(1024)
+        ip_tracker = (ip_tracker[0],int(port.decode()))
     else:
         _cliente = False
     sc.send(b'done')
@@ -67,19 +82,24 @@ def upload_remote_trackers(ip,port,upload_info):
                 s.close()
 
 def update_remote_trackers(ip,port):
+    global ip_tracker
     lock.acquire()
     torrent_list = []
     torrent_list = server_node.get_trackers(server_node.id,torrent_list)
     lock.release()
+    print(torrent_list)
     temp = ip_tracker
-    if _cliente:
-        temp = (_ip,_port)
     for i in torrent_list:
         if i != (ip,port) and i != temp and i != (_ip,_port):
             s = socket.socket(type=socket.SOCK_STREAM)
             try:
                 s.connect(i)
-                s.send(b'hello')
+                if not _cliente:
+                    s.send(b'hello')
+                else:
+                    s.send(b'remote')
+                    answer = s.recv(4)
+                    s.send(str(_port).encode())
                 answer = s.recv(4)
                 pack = str(port)
                 s.send(pack.encode())
@@ -94,6 +114,7 @@ def update_remote_trackers(ip,port):
 
 def request(sc,adr):
     global server_node
+    print(adr)
     answer = sc.recv(15)
     if answer.decode() != 'update_trackers':
         sc.send(b'done')
@@ -128,6 +149,7 @@ def request(sc,adr):
                     break
             except:
                 break
+            print(pack)
             h = hashlib.sha256(pack)
             n = int.from_bytes(h.digest(),byteorder = sys.byteorder) % 2**chord.k
             lock.acquire()
@@ -141,7 +163,8 @@ def request(sc,adr):
             lock.acquire()
             server_node.put_key(n,adr,instance)
             lock.release()
-            thr = threading.Thread(target = upload_remote_trackers,args = (adr[0],adr[1],instance,))
+            my_instance = dill.loads(instance)
+            thr = threading.Thread(target = upload_remote_trackers,args = (adr[0],adr[1],my_instance,))
             thr.start()
         elif pack.decode() == 'upload':
             sc.send(b'done')
@@ -223,12 +246,14 @@ def begin_server():
     global server_node
     global _port
     global _ip
+    global ip_tracker
     s = socket.socket(type=socket.SOCK_STREAM)
     print('Escribe el ip de la maquina')
-    ip = input()
+    ip = '191.121.116.8'#input()
     port = random.randint(8000,65000)#int(input())
     _ip = ip
     _port = port
+    print(port)
     x = str(port)
     x = hashlib.sha256(x.encode())
     x = int.from_bytes(x.digest(),byteorder = sys.byteorder) % 2**chord.k
@@ -257,6 +282,7 @@ def begin_server():
         print('waiting for peers')
         sc , adr = s.accept()
 
+        ip_tracker = adr
         th = threading.Thread(target = auxiliar,args =(sc,adr,))
         th.start()
         

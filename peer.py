@@ -36,6 +36,7 @@ class A:
         ip_temp = random.randint(8000,65000)
         print('buscando tracker')
         ipTracker, portTracker = broad.broadcast_client(self.ip, ip_temp)
+        print(portTracker)
         try:
             r, w = await asyncio.open_connection(ipTracker, portTracker,
             loop = loop)
@@ -52,7 +53,7 @@ class A:
         m = self.downloadFileName
         
         if ipList is not None and ipList[0] != 'exit':
-            path = './files/' + self.downloadFileName
+            path = './' + self.downloadFileName
             f = open(path,'ab+')
             for ip, port in ipList:
                 try:
@@ -116,7 +117,6 @@ class A:
             print("Received %r from %r" % (message, addr))
             size = 0
             path = './files/' + message
-            print(path)
             size += os.path.getsize(path)
             print('size = %r' % size)
             archivo = open(path,'rb')
@@ -160,6 +160,8 @@ class A:
 
     async def handshake(self, w, r):
         w.write(b'cliente')
+        answer = await r.read(4)
+        w.write(b'-1')
         answer = await r.read(4)
         port = str(self.port)
         w.write(port.encode())
@@ -229,8 +231,9 @@ class A:
         data['adr'] = adr
         return data
 print('Escribe el ip de tu maquina')
-ip = input()
+ip = '191.121.116.8'#input()
 port = random.randint(8000,65000)
+print(port)
 
 a = A(ip, port)
 loop = asyncio.get_event_loop()
