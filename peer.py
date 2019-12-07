@@ -9,6 +9,8 @@ class A:
         self.port = port
         self.ip = ip
         self.downloadFileName = None
+        self.uploadName = None
+        self.download_info = None
         self.downloadsize = 0
         self.temp = 0
         self.resto = 0
@@ -31,28 +33,27 @@ class A:
         archivo = []
         ipList = None
 
-        ip_temp = random.randint(8000,65000)#input()
+        ip_temp = random.randint(8000,65000)
+        print('buscando tracker')
         ipTracker, portTracker = broad.broadcast_client(self.ip, ip_temp)
-        print('-------------------------------------------------------')
         try:
             r, w = await asyncio.open_connection(ipTracker, portTracker,
             loop = loop)
             
             a = await self.handshake(w, r)
 
-            while True:
-                ipList = await self.request(w, r)                            
+            while True: 
+                ipList = await self.request(w, r)
                 if ipList is None or len(ipList) > 0:
                     break
             w.close()
         except:
-            print('se perdio la conexion con el tracker')
-
+            pass
         m = self.downloadFileName
         
         if ipList is not None and ipList[0] != 'exit':
-
-
+            path = './files/' + self.downloadFileName
+            f = open(path,'ab+')
             for ip, port in ipList:
                 try:
                     reader, writer = await asyncio.open_connection(ip, port,
@@ -61,9 +62,7 @@ class A:
                     writer.write(m.encode())
                     await writer.drain()                    
                     #/home/eziel/Documents/PythonBook.pdf
-                    print('+++++++++++++++++++++++++++++++++++++++++++++++++++')
                     data = await reader.read(4)
-                    print('+++++++++++++++++++++++++++++++++++++++++++++++++++')
 
                     message = struct.unpack('I',data)
 
@@ -78,56 +77,45 @@ class A:
                     number_packs -= self.downloadsize                    
 
                     print("reading files")
-                    print('cantidad a descargar%r'%number_packs)
+                    print(' cantidad a descargar  %r'%number_packs)
                     for i in range(number_packs):
                         pack = await reader.read(c) #<<-------
                         if len(pack) != c and i < number_packs - 1:
                             break
-                        archivo.append(pack)
+                        #archivo.append(pack)
+                        f.write(pack)
                         self.downloadsize += 1
-                        #print("pack %r ok" %i)
+                        print("pack %r ok" %self.downloadsize)
                         await asyncio.sleep(0.01)
                     writer.close()
                 except:
                     pass
-                if self.downloadsize != 0 and self.downloadsize == self.temp:
+                if self.downloadsize != 0 and self.downloadsize == self.download_info['info']['length']:
                     break
                 await asyncio.sleep(3)
-
-            print('tamanno del archivo %r'%len(archivo))
-            
-            if len(archivo) == self.temp and self.temp > 0:
-                #tengo el paquete completo!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                print("saving file")
-                #print('addrees to save the file')
-                #/home/eziel/Downloads
-                #/home/eziel/Documents/PythonBook.pdf
-                s=self.downloadFileName.split('/')
-                t = s[len(s)-1]
-                path = '/home/eziel/Downloads/' + t
-                f = open(path,'ab+')
-                for i in range(len(archivo)):
-                    f.write(archivo[i])
-                    #print(len(archivo[i]))
-                f.close()
+            f.close()
+            if self.downloadsize == self.download_info['info']['length']:
                 print("file correctly downloaded")
             else:
                 print('download failed')
+        await asyncio.sleep(1)
 
     async def handle_echo(self, reader, writer):
 
         self.clientes +=1
-        c = self.copysize#65536  #2^16
+        c = self.copysize
 
         try:
             data = await reader.read(c)
             message = data.decode()
-            print('=====================================================')
-            print(message)
+            if message=='hello':
+                self.clientes-=1
+                writer.close()
+                return  
             addr = writer.get_extra_info('peername')
             print("Received %r from %r" % (message, addr))
             size = 0
-            path = message
+            path = './files/' + message
             print(path)
             size += os.path.getsize(path)
             print('size = %r' % size)
@@ -138,15 +126,12 @@ class A:
             if os.stat(path).st_size % c == 0:
                 sizefile -=1
 
-            print('tamanno del archivo')            
-            print(sizefile)
             if sizefile > 0:
                 writer.write(struct.pack('I',sizefile))
 
                 temp = await reader.read(4)
                 current = int(temp.decode())
 
-                #lo q ya se envio
                 for _ in range(current):
                     x = archivo.read(c)
                 
@@ -158,12 +143,10 @@ class A:
                 archivo.close()
 
                 print("sending package")
-                print('cantidad a enviar%r'%len(content))
                 for i in range(len(content)):
                     writer.write(content[i])
-                    #print(len(content[i]))
-                    await asyncio.sleep(0.01)                
-                    #print('pack %r sended' %i)
+                    await asyncio.sleep(self.clientes/100)                
+                    
         except:
             pass
         
@@ -178,10 +161,8 @@ class A:
     async def handshake(self, w, r):
         w.write(b'cliente')
         answer = await r.read(4)
-        print(answer.decode())
         port = str(self.port)
         w.write(port.encode())
-        print('puerto enviado al tracker %r' %self.port)        
         answer = await r.read(4)
         w.write(b'updato_trackers')
         answer = await r.read(4)
@@ -200,21 +181,23 @@ class A:
         if entry == 'list':
             w.write(b'list')
             answer = await r.read(4)
-            print(answer.decode())
             my_list = await r.read(1024)
             my_list = my_list.decode()
             print(my_list)
         if entry == 'download':
             w.write(b'download')
             answer = await r.read(4)
-            print(answer.decode())
             print('type a filename: ')
             filename = input()
             self.downloadFileName = filename
-            w.write(filename.encode())
+            w.write(filename.encode())            
             ip_list = await r.read(1024)
-            a=ip_list.decode()
-            print(ip_list.decode())
+            w.write(b'done')
+            torrent = await r.read(1024)
+            w.write(b'done')
+            my_dict = dill.loads(torrent)
+            self.download_info = my_dict
+            a = ip_list.decode()
             b = await self.parsingList(a)
             return b
         if entry == 'upload':
@@ -222,11 +205,30 @@ class A:
             answer = await r.read(4)
             print('type a filename: ')
             filename = input()
-            serializado = dill.dumps(filename)
-            w.write(serializado)
+            self.uploadName = filename
+            addr = w.get_extra_info('peername')
+            info = await self.metaInfo(addr)
+            instance = dill.dumps(info)
+            w.write(instance)            
         return []
 
-print('escribe el ip de tu maquina')
+    async def metaInfo(self, adr):
+        c = self.copysize
+        d = {}
+        data = {}        
+        d['piece_length'] = 1024
+        size = 0
+        path = './files/' + self.uploadName
+        size += os.path.getsize(path)
+        sizefile = int(os.stat(path).st_size/c) + 1
+        if os.stat(path).st_size % c == 0:
+            sizefile -=1
+        d['name'] = self.uploadName
+        d['length'] = sizefile
+        data['info'] =  d
+        data['adr'] = adr
+        return data
+print('Escribe el ip de tu maquina')
 ip = input()
 port = random.randint(8000,65000)
 

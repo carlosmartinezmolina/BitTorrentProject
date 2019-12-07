@@ -17,7 +17,6 @@ def broadcast_client(ip,port):
         time.sleep(2)
         if len(lista) > 0:
             break
-    print(lista[0])
     return lista[0]      
    
 def broadcast_client_auxiliar(ip,port,lista):

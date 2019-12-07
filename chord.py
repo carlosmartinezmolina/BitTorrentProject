@@ -19,7 +19,7 @@ class Node:
     def __init__(self,id):
         self.id = id
         self.storage = {}
-        self.info = []
+        self.info = {}
         self.trackers = []
         self.m = int(math.log2(k))
         self.finger_table = [None] * self.m
@@ -44,47 +44,39 @@ class Node:
     def get_key(self,key):
         node = self.closest_preceding_node(key).successor()
         if key in self.storage:
-            return self.storage[key]
+            return self.storage[key], self.info[key]
         return None
 
     def get_info(self,id,my_list):
-        print('info ' + str(self.id%10000))
-        #print('info sucesor ' + str(self.successor().id%10000))
         if self.successor().id == id:
-            for i in self.successor().info:
-                if not my_list.__contains__(i):
-                    my_list.append(i)
-            #print('termino')
+            for i in self.successor().info.values():
+                if not my_list.__contains__(i['info']['name']):
+                    my_list.append(i['info']['name'])
             return my_list
         else:
-            for i in self.info:
-                if not my_list.__contains__(i):
-                    my_list.append(i)
+            for i in self.info.values():
+                if not my_list.__contains__(i['info']['name']):
+                    my_list.append(i['info']['name'])
             self.successor().get_info(id,my_list)
-            #print('termino')
             return my_list
 
     def get_trackers(self,id,my_list):
-        print('infoT ' + str(self.id%10000))
-        #print('info sucesor ' + str(self.successor().id%10000))
         if self.successor().id == id:
             for i in self.successor().trackers:
                 if not my_list.__contains__(i):
                     my_list.append(i)
-            #print('termino')
             return my_list
         else:
             for i in self.trackers:
                 if not my_list.__contains__(i):
                     my_list.append(i)
             self.successor().get_trackers(id,my_list)
-            #print('termino')
             return my_list
 
     
     def replicar(self,node,key,value,pack):
-        if not node.info.__contains__(pack):
-            node.info.append(pack)
+        if key not in self.info:
+            self.info[key] = pack
         if key not in node.storage:
             node.storage[key] = [value]
         else:
@@ -101,15 +93,13 @@ class Node:
 
 
     def put_tracker(self,ip_port):
-        #print('put_tracker ' + str(ip_port))
         if not self.trackers.__contains__(ip_port):
             self.trackers.append(ip_port)
         return
         
-    #list('[1,2,3,132]'[1:-1].split(','))
     def put_key(self,key,value,pack):
-        if not self.info.__contains__(pack):
-            self.info.append(pack)
+        if key not in self.info:
+            self.info[key] = pack
         if key not in self.storage:
             self.storage[key] = [value]
         else:
